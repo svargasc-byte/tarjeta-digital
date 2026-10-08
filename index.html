@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tarjeta Digital Profesional - NFC</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 antialiased selection:bg-indigo-500 selection:text-white min-h-screen flex items-center justify-center p-4">
+
+    <div id="root" class="w-full"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        function App() {
+            // Estado del perfil profesional (editable desde el panel interno y persistente)
+            const [profile, setProfile] = useState({
+                name: 'Alejandro Torres',
+                title: 'Estratega de Negocios Digitales & Desarrollador',
+                company: 'Innovación Tech & Mini-Apps',
+                bio: 'Ayudo a profesionales y marcas a digitalizar sus productos físicos con tecnología NFC, Web Apps y automatización inteligente.',
+                phone: '+51987654321',
+                email: 'contacto@innovaciontech.pe',
+                website: 'https://tuweb.com',
+                whatsapp: '+51987654321',
+                linkedin: 'https://linkedin.com',
+                instagram: 'https://instagram.com'
+            });
+
+            const [isEditing, setIsEditing] = useState(false);
+            const [savedSuccess, setSavedSuccess] = useState(false);
+
+            useEffect(() => {
+                const saved = localStorage.getItem('digital_card_profile');
+                if (saved) {
+                    try {
+                        setProfile(JSON.parse(saved));
+                    } catch (e) {
+                        console.error('Error loading storage', e);
+                    }
+                }
+            }, []);
+
+            const saveProfile = (newProfile) => {
+                setProfile(newProfile);
+                localStorage.setItem('digital_card_profile', JSON.stringify(newProfile));
+                setIsEditing(false);
+            };
+
+            const handleSaveContact = () => {
+                // Crear contenido del archivo vCard (.vcf) para descarga directa a la agenda
+                const vcardData = [
+                    'BEGIN:VCARD',
+                    'VERSION:3.0',
+                    `FN:${profile.name}`,
+                    `TITLE:${profile.title}`,
+                    `ORG:${profile.company}`,
+                    `TEL;TYPE=WORK,VOICE:${profile.phone}`,
+                    `EMAIL;TYPE=PREF,INTERNET:${profile.email}`,
+                    `URL:${profile.website}`,
+                    `NOTE:${profile.bio}`,
+                    'END:VCARD'
+                ].join('\n');
+
+                const blob = new Blob([vcardData], { type: 'text/vcard;charset=utf-8' });
+                const url = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.setAttribute('download', `${profile.name.replace(/\s+/g, '_')}_Contacto.vcf`);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                setSavedSuccess(true);
+                setTimeout(() => setSavedSuccess(false), 4000);
+            };
+
+            return (
+                <div className="w-full max-w-md mx-auto bg-slate-950 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden p-6 relative">
+                    
+                    {/* Botón flotante de configuración / modo dueño */}
+                    <div className="absolute top-4 right-4 z-10">
+                        <button 
+                            onClick={() => setIsEditing(!isEditing)}
+                            className="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs px-3 py-1.5 rounded-full transition-all border border-slate-700 shadow-sm"
+                        >
+                            {isEditing ? 'Ver Tarjeta' : '⚙️ Editar Perfil'}
+                        </button>
+                    </div>
+
+                    {!isEditing ? (
+                        <div className="space-y-6 pt-2">
+                            {/* Avatar & Header */}
+                            <div className="text-center space-y-3">
+                                <div className="relative w-28 h-28 mx-auto">
+                                    <img 
+                                        src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=400" 
+                                        alt={profile.name}
+                                        className="w-full h-full object-cover rounded-full border-2 border-indigo-500 shadow-lg shadow-indigo-500/20"
+                                        onError={(e) => {e.target.src = 'https://placehold.co/400x400/1e293b/94a3b8?text=Foto'}}
+                                    />
+                                    <div className="absolute bottom-0 right-0 bg-emerald-500 w-5 h-5 rounded-full border-2 border-slate-950" title="Disponible"></div>
+                                </div>
+                                <div>
+                                    <h1 className="text-xl font-bold text-white tracking-tight">{profile.name}</h1>
+                                    <p className="text-xs font-medium text-indigo-400 mt-0.5">{profile.title}</p>
+                                    <p className="text-[11px] text-slate-400 font-medium">{profile.company}</p>
+                                </div>
+                            </div>
+
+                            {/* Bio / About */}
+                            <div className="bg-slate-900/80 border border-slate-800/80 p-3.5 rounded-2xl text-xs text-slate-300 text-center leading-relaxed">
+                                {profile.bio}
+                            </div>
+
+                            {/* Alerta de descarga exitosa */}
+                            {savedSuccess && (
+                                <div className="bg-emerald-900/50 border border-emerald-500/50 text-emerald-200 text-xs p-3 rounded-xl text-center font-medium animate-pulse">
+                                    ¡Contacto descargado con éxito! Agrégalo a tu agenda telefónica.
+                                </div>
+                            )}
+
+                            {/* Botón Principal: Guardar Contacto vCard */}
+                            <div>
+                                <button 
+                                    onClick={handleSaveContact}
+                                    className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold py-3.5 px-4 rounded-2xl transition-all shadow-lg shadow-indigo-600/30 flex items-center justify-center space-x-2 text-sm active:scale-95"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6"/><path d="M22 11h-6"/></svg>
+                                    <span>Guardar en Mis Contactos (vCard)</span>
+                                </button>
+                            </div>
+
+                            {/* Grid de Enlaces y Redes Sociales */}
+                            <div className="space-y-2.5 pt-1">
+                                <a 
+                                    href={`https://wa.me/${profile.whatsapp.replace(/[^0-9]/g, '')}?text=Hola%20${encodeURIComponent(profile.name)},%20vi%20tu%20tarjeta%20digital%20NFC%20y%20me%20gustaría%20contactarte.`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center justify-between p-3.5 rounded-xl bg-slate-900 hover:bg-slate-850 border border-slate-800 transition-all text-xs font-semibold text-slate-200 group"
+                                >
+                                    <div className="flex items-center space-x-3">
+                                        <div className="bg-emerald-500/10 text-emerald-400 p-2 rounded-lg group-hover:bg-emerald-500/20 transition-all">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                                        </div>
+                                        <span>Escribir por WhatsApp</span>
+                                    </div>
+                                    <span className="text-slate-500 text-xs">→</span>
+                                </a>
+
+                                <a 
+                                    href={`tel:${profile.phone}`}
+                                    className="flex items-center justify-between p-3.5 rounded-xl bg-slate-900 hover:bg-slate-850 border border-slate-800 transition-all text-xs font-semibold text-slate-200 group"
+                                >
+                                    <div className="flex items-center space-x-3">
+                                        <div className="bg-indigo-500/10 text-indigo-400 p-2 rounded-lg group-hover:bg-indigo-500/20 transition-all">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                                        </div>
+                                        <span>Llamar Directamente</span>
+                                    </div>
+                                    <span className="text-slate-500 text-xs">→</span>
+                                </a>
+
+                                <a 
+                                    href={profile.website}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center justify-between p-3.5 rounded-xl bg-slate-900 hover:bg-slate-850 border border-slate-800 transition-all text-xs font-semibold text-slate-200 group"
+                                >
+                                    <div className="flex items-center space-x-3">
+                                        <div className="bg-blue-500/10 text-blue-400 p-2 rounded-lg group-hover:bg-blue-500/20 transition-all">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                                        </div>
+                                        <span>Visitar Sitio Web / Portafolio</span>
+                                    </div>
+                                    <span className="text-slate-500 text-xs">→</span>
+                                </a>
+                            </div>
+
+                            {/* Footer Branding */}
+                            <div className="pt-4 text-center border-t border-slate-900">
+                                <p className="text-[10px] text-slate-500 tracking-wider uppercase font-semibold">
+                                    Powered by NFC Smart Tech
+                                </p>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="space-y-4 pt-2">
+                            <div>
+                                <h2 className="text-base font-bold text-white">Configurar Tarjeta Digital</h2>
+                                <p className="text-xs text-slate-400">Actualiza tus datos profesionales grabados en el chip NFC.</p>
+                            </div>
+
+                            <form onSubmit={(e) => {
+                                e.preventDefault();
+                                const form = e.target;
+                                saveProfile({
+                                    ...profile,
+                                    name: form.name.value,
+                                    title: form.title.value,
+                                    company: form.company.value,
+                                    bio: form.bio.value,
+                                    phone: form.phone.value,
+                                    email: form.email.value,
+                                    whatsapp: form.whatsapp.value,
+                                    website: form.website.value
+                                });
+                            }} className="space-y-3">
+                                <div>
+                                    <label className="block text-[11px] font-semibold text-slate-300 mb-1">Nombre Completo</label>
+                                    <input name="name" defaultValue={profile.name} className="w-full text-xs p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" required />
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label className="block text-[11px] font-semibold text-slate-300 mb-1">Cargo / Profesión</label>
+                                        <input name="title" defaultValue={profile.title} className="w-full text-xs p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" required />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[11px] font-semibold text-slate-300 mb-1">Empresa / Marca</label>
+                                        <input name="company" defaultValue={profile.company} className="w-full text-xs p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" required />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-[11px] font-semibold text-slate-300 mb-1">Biografía Breve</label>
+                                    <textarea name="bio" defaultValue={profile.bio} rows="2" className="w-full text-xs p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" required></textarea>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label className="block text-[11px] font-semibold text-slate-300 mb-1">Teléfono / Celular</label>
+                                        <input name="phone" defaultValue={profile.phone} className="w-full text-xs p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" required />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[11px] font-semibold text-slate-300 mb-1">WhatsApp</label>
+                                        <input name="whatsapp" defaultValue={profile.whatsapp} className="w-full text-xs p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" required />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-[11px] font-semibold text-slate-300 mb-1">Sitio Web URL</label>
+                                    <input name="website" defaultValue={profile.website} className="w-full text-xs p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" required />
+                                </div>
+
+                                <div className="flex space-x-2 pt-2">
+                                    <button type="submit" className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs py-2.5 rounded-xl font-semibold shadow-md transition-all">Guardar Cambios</button>
+                                    <button type="button" onClick={() => setIsEditing(false)} className="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs py-2.5 px-4 rounded-xl font-semibold transition-all">Cancelar</button>
+                                </div>
+                            </form>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
